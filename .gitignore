@@ -1,3 +1,12 @@
+# Folders to ignore
+archive
+data
+documents
+images
+reports
+powerBI
+source
+
 # History files
 .Rhistory
 .Rapp.history
