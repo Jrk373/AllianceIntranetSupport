@@ -1,0 +1,180 @@
+---
+title: "MemberFollowUpList"
+author: "John Ryan Kivela, MA"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(tidyverse)
+```
+
+# Introduction
+This is the procedure for creating a member list for follow up from the data model created by the the VBPMeasurementValidation report.
+
+# Method
+
+Ok, so, the plan is:
+
+Part 1: Build the list of inpatient claims, combined with their validation status, and compliance status, 
+
+Act 1: Summarize the VBP_RepComb to a sum, by member, by subMeasureID, in order to get a Y/N/Both indicator, which will then be attached to the member record in IPClaims.
+
+## Data Sources
+### VBP Validated Member List
+
+- From file "ValMat_All.csv" from the *VBP Quality Report Validation Study* (Kivela, 2023).
+- 29,187 observations of 40 variables
+- Contains the "MemberID"s from the "ValidationMatrix", recombined with their details from the "IPClaims_Summary" table, now including their matching data, for all match statuses
+
+```{r data_ValMat_All, include=TRUE, ECHO=TRUE, warning=FALSE, message=FALSE}
+
+#IPClaims Data
+ValMat_All <- read.csv("./data/ValMat_All.csv") 
+
+```
+
+### VBP Quality Report Data
+
+- From file "VBP_Rep_Com_validation.csv" from the *VBP Quality Report Validation Study*
+- 98,068 observations of 33 variables
+- Contains the aggregated and cleaned data from each of the Alliance Providers' individual VBP Quality Reports for the most recently available reporting period.
+
+
+```{r data_VBPQR, include=TRUE, ECHO=TRUE, warning=FALSE, message=FALSE}
+
+#VBP QR Data
+VBP_QRData <- read.csv("./data/VBP_Rep_Comb_validation_complete.csv")
+
+```
+
+## Procedure
+### Determine VBP Compliance Status
+
+From the VBP_QRData, we grouped by SubMeasureID and then by MemberID, in order to created a new variable that is the sum of the number of times a person was counted as compliant. If the sum = 0, this means the person is NonCompliant. If the answer is 1, then Compliant.
+
+- This new file is called *Compliance Status*
+- 97,933 observations of 4 variables
+- This provides 1 instance per member, per instance
+- By using the Numerator variable, we determine if a person has ever been deemed "Compliant", as indicated by having at least one instance of "1", if they have never been deemed compliant, meaning all "0", then this is indicated as "NonCompliant".
+
+```{r eval_VBPCompliance, include=TRUE, ECHO=TRUE, warning=FALSE, message=FALSE}
+
+# Add a compliance indicator
+ComplianceStatus <- VBP_QRData %>% 
+  rename(MemberID = Member.ID) %>% 
+  group_by(SubMeasure.ID, MemberID) %>%
+  summarise(ComplianceStatus=sum(Numerator),
+            .groups = "drop") %>% 
+  mutate(ComplianceStatus2 = if_else(ComplianceStatus == 0,"NonCompliant", "Compliant")) %>% 
+  filter(SubMeasure.ID == "FUH7")
+
+write.csv(ComplianceStatus, "./data/output/ComplianceStatus.csv")
+
+```
+
+### Recombine Compliance status with VBP RepComb
+
+The member list is combined with compliance list, resulting in a member contact list that indicates the following:
+
+1. Member identification numbers
+2. VBP Quality Report validation indicators
+  a. VBP: 
+    1. NA = Does not appear in the VBP Quality Report
+    2. X >= 1: Does appear in the VBP Quality report at least once
+      a. X = the total number of times the member appears in the VBP Quality Report
+  b. Claims:
+    1. NA = Does not appear in the IPClaims Report
+    2. X >= 1: Does appear in the IPClaims report at least once
+      a. X = the total number of times the member appears in the IPClaims Report
+  c. Match:
+    1. Match = member appears in BOTH VBP Quality Report AND Claims Report
+    2. NoMatch = Member does not appear in BOTH VBP Quality Report AND Claims Report
+  d. Compliance Status2
+    1. NA = Does not appear in the VBP Quality Report
+    2. Compliant = Member appears on the VBP Quality Report and is indicated as compliant to the measure at least once.
+    3. NonCompliant = Member appears on the VBP Quality Report and is indicated as NonCompliant
+3. Claim details
+
+Once created, the MemberFollowUp list is divided per "ra" and exported to individual provider files for sharing.
+
+```{r eval_VBPCompliance2, include=TRUE, ECHO=TRUE, warning=FALSE, message=FALSE}
+
+#Merge tables
+MemberFollowUpList <- 
+  merge(
+    x = ValMat_All, #IPClaims
+    y = ComplianceStatus, #VBPQR with compliance indicator
+    by = "MemberID",
+    all.x = TRUE
+  ) %>% 
+  select(MemberID,
+         AzAhcccsId,
+         VBP,
+         claims,
+         Match,
+         ComplianceStatus2,
+         begDate,
+         lastName,
+         firstName,
+         ra,
+         PrimaryDiagnosis,
+         Elig_MHDx,
+         ProviderName,
+         PCPName,
+         svccode,
+         ProviderType,
+         dob,
+         sex,
+         Age)
+
+write.csv(MemberFollowUpList, "./data/output/FUH7_MemberFollowUpList.csv")
+
+# Create individual lists from MemberFollowUpList
+MemberFollowUpList_CBI <- MemberFollowUpList %>% 
+  filter(ra == "CBI")
+write.csv(MemberFollowUpList_CBI, "./data/output/VBP_FUH7_FollowUpMemberList/CBI/FUH7_MemberFollowUpList_CBI.csv")
+write.csv(MemberFollowUpList_CBI, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/CBI/FUH7_MemberFollowUpList_CBI.csv")
+
+MemberFollowUpList_CPIH <- MemberFollowUpList %>% 
+  filter(ra == "CPIH")
+write.csv(MemberFollowUpList_CPIH, "./data/output/VBP_FUH7_FollowUpMemberList/CPIH/FUH7_MemberFollowUpList_CPIH.csv")
+write.csv(MemberFollowUpList_CPIH, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/CPIH/FUH7_MemberFollowUpList_CPIH.csv")
+
+MemberFollowUpList_LCBHC <- MemberFollowUpList %>% 
+  filter(ra == "LCBHC")
+write.csv(MemberFollowUpList_LCBHC, "./data/output/VBP_FUH7_FollowUpMemberList/LCBHC/FUH7_MemberFollowUpList_LCBHC.csv")
+write.csv(MemberFollowUpList_LCBHC, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/LCBHC/FUH7_MemberFollowUpList_LCBHC.csv")
+
+
+MemberFollowUpList_MMHC <- MemberFollowUpList %>% 
+  filter(ra == "MMHC")
+write.csv(MemberFollowUpList_MMHC, "./data/output/VBP_FUH7_FollowUpMemberList/MMHC/FUH7_MemberFollowUpList_MMHC.csv")
+write.csv(MemberFollowUpList_MMHC, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/MMHC/FUH7_MemberFollowUpList_MMHC.csv")
+
+MemberFollowUpList_PH <- MemberFollowUpList %>% 
+  filter(ra == "PH")
+write.csv(MemberFollowUpList_PH, "./data/output/VBP_FUH7_FollowUpMemberList/PH/FUH7_MemberFollowUpList_PH.csv")
+write.csv(MemberFollowUpList_PH, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/PH/FUH7_MemberFollowUpList_PH.csv")
+
+MemberFollowUpList_SBHS <- MemberFollowUpList %>% 
+  filter(ra == "SBHS")
+write.csv(MemberFollowUpList_SBHS, "./data/output/VBP_FUH7_FollowUpMemberList/SBHS/FUH7_MemberFollowUpList_SBHS.csv")
+write.csv(MemberFollowUpList_SBHS, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/SBHS/FUH7_MemberFollowUpList_SBHS.csv")
+
+MemberFollowUpList_SHG <- MemberFollowUpList %>% 
+  filter(ra == "SHG")
+write.csv(MemberFollowUpList_SHG, "./data/output/VBP_FUH7_FollowUpMemberList/SHG/FUH7_MemberFollowUpList_SHG.csv")
+write.csv(MemberFollowUpList_SHG, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/SHG/FUH7_MemberFollowUpList_SHG.csv")
+
+MemberFollowUpList_TGC <- MemberFollowUpList %>% 
+  filter(ra == "TGC")
+write.csv(MemberFollowUpList_TGC, "./data/output/VBP_FUH7_FollowUpMemberList/TGC/FUH7_MemberFollowUpList_TGC.csv")
+write.csv(MemberFollowUpList_TGC, "C:/Users/KGLtd/OneDrive - The NARBHA Institute/ACO/Data and Reports/AllianceProvider_SharedData/TGC/FUH7_MemberFollowUpList_TGC.csv")
+
+
+```
+
+# Active NAZ membership
