@@ -204,6 +204,14 @@ walk(provider_names, function(provider) {
 
 ```
 
+# Inpatient Census
+
+This is the inpatient census received from HC Medical Management.
+
+```{r}
+
+```
+
 # Now, about the Power automate
 
 Within Power Automate there is a Flow for each Provider and the Alliance as a whole. 
