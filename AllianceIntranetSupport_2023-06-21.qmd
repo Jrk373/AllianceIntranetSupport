@@ -209,6 +209,94 @@ walk(provider_names, function(provider) {
 This is the inpatient census received from HC Medical Management.
 
 ```{r}
+#| label: Inpatient Census
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+#Import Data
+Census_IP_Original <- read.csv("./data/AZBA_HCA_CensusIP.csv")
+
+Census_IP <- Census_IP_Original
+
+Census_IP$AHCCCSID <- substr(Census_IP$MEM_ID, 4, nchar(Census_IP$MEM_ID))
+
+Census_IP <- 
+  merge(x = Census_IP,
+        y = AllianceMemberEnrollmentRoster,
+        by = "AHCCCSID",
+        all.x = TRUE)
+
+Census_IP <-
+  Census_IP |> 
+  select(
+    PrimaryID,
+    AHCCCSID,
+    LAST_NAME,
+    FIRST_NAME,
+    MEM_PHONE,
+    ADM_DTE,
+    LOS,
+    FACILITY_NAME,
+    FACILITY_TYPE_DESC,
+    Age,
+    Sex,
+    DateOfBirth,
+    MemberZipCode,
+    MemberCountyOfResidence,
+    AllianceProviderShortname,
+    EnrollmentStartDate,
+    DisenrollmentDate
+    
+  )
+
+```
+
+```{r}
+#| label: Inpatient Discharge
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+#Import Data
+Census_DC_Original <- read.csv("./data/AZBA_HCA_CensusDC.csv")
+
+Census_DC <- Census_DC_Original
+
+Census_DC$AHCCCSID <- substr(Census_DC$MEM_ID, 4, nchar(Census_DC$MEM_ID))
+
+Census_DC <- 
+  merge(x = Census_DC,
+        y = AllianceMemberEnrollmentRoster,
+        by = "AHCCCSID",
+        all.x = TRUE)
+
+Census_DC <-
+  Census_DC |> 
+  select(
+    PrimaryID,
+    AHCCCSID,
+    LAST_NAME,
+    FIRST_NAME,
+    ADM_DATE,
+    DCH_DTE,
+    LOS,
+    DCH_DESC,
+    FACILITY_NAME,
+    FACILITY_TYPE_DESC,
+    Age,
+    Sex,
+    DateOfBirth,
+    MemberZipCode,
+    MemberCountyOfResidence,
+    AllianceProviderShortname,
+    EnrollmentStartDate,
+    DisenrollmentDate
+    )
 
 ```
 
