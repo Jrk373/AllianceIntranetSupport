@@ -44,6 +44,8 @@ library(purrr)
 library(readxl)
 library(tidyverse)
 
+# Set up ODBC Connection
+ DWPROD01 <- DBI::dbConnect(odbc::odbc(),"BehavioralHealthAlliance")
 ```
 
 # Alliance Member Enrollment Roster
@@ -208,18 +210,24 @@ walk(provider_names, function(provider) {
 
 This is the inpatient census received from HC Medical Management.
 
-```{r}
-#| label: Inpatient Census
+```{sql, connection = DWPROD01, output.var = "AllianceInpatientCensus"}
+#| label: Alliance Inpatient Census
 #| eval: true
 #| include: false
 #| echo: false
 #| warning: false
 #| error: false
 
-#Import Data
-Census_IP_Original <- read.csv("./data/AZBA_HCA_CensusIP.csv")
 
-Census_IP <- Census_IP_Original
+
+SELECT *
+FROM BehavioralHealthAlliance.dbo.BHACensusInpatient
+
+```
+
+```{r}
+
+Census_IP <- AllianceInpatientCensus
 
 Census_IP$AHCCCSID <- substr(Census_IP$MEM_ID, 4, nchar(Census_IP$MEM_ID))
 
@@ -252,6 +260,62 @@ Census_IP <-
     
   )
 
+# Set the output directory
+output_dir <- "./data/output/"
+
+ 
+
+# Create the output directory if it doesn't exist
+dir_create(output_dir)
+
+ 
+
+# Get unique AllianceProviderShortname values
+provider_names <- unique(Census_IP$AllianceProviderShortname)
+
+ 
+
+# Get today's date in YYYY-MM-DD format
+today_date <- format(Sys.Date(), "%Y-%m-%d")
+
+ 
+
+# Split the table by AllianceProviderShortname and save individual CSV files
+walk(provider_names, function(provider) {
+  # Create provider-specific directory if it doesn't exist
+  provider_dir <- file.path(output_dir, provider)
+  dir_create(provider_dir)
+
+ 
+
+  # Filter data for the current provider
+  provider_data <- filter(Census_IP, AllianceProviderShortname == provider)
+
+ 
+
+  # Construct file name with current date
+  file_name <- file.path(provider_dir, paste0("AllianceCensus_IP_", provider, "_", today_date, ".csv"))
+
+ 
+
+  # Save data as CSV
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+})
+
+
+```
+
+```{sql, connection = DWPROD01, output.var = "AllianceInpatientDischarge"}
+#| label: Alliance Inpatient Census
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+SELECT *
+FROM BehavioralHealthAlliance.dbo.BHACensusDischarge
+
 ```
 
 ```{r}
@@ -263,7 +327,7 @@ Census_IP <-
 #| error: false
 
 #Import Data
-Census_DC_Original <- read.csv("./data/AZBA_HCA_CensusDC.csv")
+Census_DC_Original <- AllianceInpatientDischarge
 
 Census_DC <- Census_DC_Original
 
@@ -297,6 +361,48 @@ Census_DC <-
     EnrollmentStartDate,
     DisenrollmentDate
     )
+
+# Set the output directory
+output_dir <- "./data/output/"
+
+ 
+
+# Create the output directory if it doesn't exist
+dir_create(output_dir)
+
+ 
+
+# Get unique AllianceProviderShortname values
+provider_names <- unique(Census_DC$AllianceProviderShortname)
+
+ 
+
+# Get today's date in YYYY-MM-DD format
+today_date <- format(Sys.Date(), "%Y-%m-%d")
+
+ 
+
+# Split the table by AllianceProviderShortname and save individual CSV files
+walk(provider_names, function(provider) {
+  # Create provider-specific directory if it doesn't exist
+  provider_dir <- file.path(output_dir, provider)
+  dir_create(provider_dir)
+
+ 
+
+  # Filter data for the current provider
+  provider_data <- filter(Census_DC, AllianceProviderShortname == provider)
+
+ 
+
+  # Construct file name with current date
+  file_name <- file.path(provider_dir, paste0("AllianceCensus_DC_", provider, "_", today_date, ".csv"))
+
+ 
+
+  # Save data as CSV
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+})
 
 ```
 
