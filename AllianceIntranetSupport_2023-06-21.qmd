@@ -18,13 +18,15 @@ format:
 
 # Introduction
 
-The purpose of this document is to establish processes for converting Alliance data models into useable data prodiucts for our providers.
+The purpose of this document is to establish processes for converting Alliance data models into usable data products for our providers.
 
 The tools that are included in this document are:
   -   Active NAZ Membership
   -   VBP Quality Roster
   -   FUH7 Follow Up List
   -   AMM Follow Up List
+  -   Inpatient Census
+  -   Inpatient Discharge List
   
 Diving right in...
 
@@ -43,6 +45,7 @@ library(fs)
 library(purrr)
 library(readxl)
 library(tidyverse)
+library(lubridate)
 
 # Set up ODBC Connection
  DWPROD01 <- DBI::dbConnect(odbc::odbc(),"BehavioralHealthAlliance")
@@ -206,7 +209,9 @@ walk(provider_names, function(provider) {
 
 ```
 
-# Inpatient Census
+# Census Data
+
+## Inpatient Census
 
 This is the inpatient census received from HC Medical Management.
 
@@ -227,16 +232,33 @@ FROM BehavioralHealthAlliance.dbo.BHACensusInpatient
 
 ```{r}
 
+# First Save today's file with today's date
+
+# Get today's date
+today <- Sys.Date()
+# Create a data frame
+data <- data.frame(Date = today, Value = 42)
+# Define the file path and name
+file_root <- "AllianceInpatientCensus"
+output_path <- "./data/output/CensusData/"
+csv_file <- paste0(output_path, file_root, "_", format(today, "%Y-%m-%d"), ".csv")
+# Write the data frame to a CSV file
+write.csv(data, csv_file, row.names = FALSE)
+
+# Load the data
 Census_IP <- AllianceInpatientCensus
 
+# Create AHCCCSID from MemberID
 Census_IP$AHCCCSID <- substr(Census_IP$MEM_ID, 4, nchar(Census_IP$MEM_ID))
 
+# Attach enrollment data to census data
 Census_IP <- 
   merge(x = Census_IP,
         y = AllianceMemberEnrollmentRoster,
         by = "AHCCCSID",
         all.x = TRUE)
 
+# Select variables for analysis
 Census_IP <-
   Census_IP |> 
   select(
@@ -262,50 +284,152 @@ Census_IP <-
 
 # Set the output directory
 output_dir <- "./data/output/"
-
- 
-
 # Create the output directory if it doesn't exist
 dir_create(output_dir)
-
- 
-
 # Get unique AllianceProviderShortname values
 provider_names <- unique(Census_IP$AllianceProviderShortname)
-
- 
-
 # Get today's date in YYYY-MM-DD format
 today_date <- format(Sys.Date(), "%Y-%m-%d")
-
- 
 
 # Split the table by AllianceProviderShortname and save individual CSV files
 walk(provider_names, function(provider) {
   # Create provider-specific directory if it doesn't exist
   provider_dir <- file.path(output_dir, provider)
   dir_create(provider_dir)
-
- 
-
   # Filter data for the current provider
   provider_data <- filter(Census_IP, AllianceProviderShortname == provider)
-
- 
-
   # Construct file name with current date
   file_name <- file.path(provider_dir, paste0("AllianceCensus_IP_", provider, "_", today_date, ".csv"))
-
- 
-
   # Save data as CSV
   write.csv(provider_data, file = file_name, row.names = FALSE)
 })
 
+# Move files to the Census Data folder in their respective directories, repeat for each provider
 
+# CBI
+# Define the current directory path
+current_directory <- "./data/output/CBI"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/CBI/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#CPIH
+# Define the current directory path
+current_directory <- "./data/output/CPIH"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/CPIH/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#LCBHS
+# Define the current directory path
+current_directory <- "./data/output/LCBHC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/LCBHC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#MMHC
+# Define the current directory path
+current_directory <- "./data/output/MMHC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/MMHC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#PH
+# Define the current directory path
+current_directory <- "./data/output/PH"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/PH/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#SBHS
+# Define the current directory path
+current_directory <- "./data/output/SBHS"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/SBHS/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#SHG
+# Define the current directory path
+current_directory <- "./data/output/SHG"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/SHG/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#TGC
+# Define the current directory path
+current_directory <- "./data/output/TGC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/TGC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceInpatientCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
 ```
 
-```{sql, connection = DWPROD01, output.var = "AllianceInpatientDischarge"}
+## Discharge Census
+
+```{sql, connection = DWPROD01, output.var = "AllianceDischargeCensus"}
 #| label: Alliance Inpatient Census
 #| eval: true
 #| include: false
@@ -326,19 +450,33 @@ FROM BehavioralHealthAlliance.dbo.BHACensusDischarge
 #| warning: false
 #| error: false
 
-#Import Data
-Census_DC_Original <- AllianceInpatientDischarge
+# First Save today's file with today's date
 
-Census_DC <- Census_DC_Original
+# Get today's date
+today <- Sys.Date()
+# Create a data frame
+data <- data.frame(Date = today, Value = 42)
+# Define the file path and name
+file_root <- "AllianceDischargeCensus"
+output_path <- "./data/output/CensusData/"
+csv_file <- paste0(output_path, file_root, "_", format(today, "%Y-%m-%d"), ".csv")
+# Write the data frame to a CSV file
+write.csv(data, csv_file, row.names = FALSE)
 
+# Load the data
+Census_DC <- AllianceDischargeCensus
+
+# Create AHCCCSID from MemberID
 Census_DC$AHCCCSID <- substr(Census_DC$MEM_ID, 4, nchar(Census_DC$MEM_ID))
 
+# Attach enrollment data to census data
 Census_DC <- 
   merge(x = Census_DC,
         y = AllianceMemberEnrollmentRoster,
         by = "AHCCCSID",
         all.x = TRUE)
 
+# Select variables for analysis
 Census_DC <-
   Census_DC |> 
   select(
@@ -346,10 +484,9 @@ Census_DC <-
     AHCCCSID,
     LAST_NAME,
     FIRST_NAME,
+    MEM_PHONE,
     ADM_DATE,
-    DCH_DTE,
     LOS,
-    DCH_DESC,
     FACILITY_NAME,
     FACILITY_TYPE_DESC,
     Age,
@@ -360,49 +497,152 @@ Census_DC <-
     AllianceProviderShortname,
     EnrollmentStartDate,
     DisenrollmentDate
-    )
+    
+  )
 
 # Set the output directory
 output_dir <- "./data/output/"
-
- 
-
 # Create the output directory if it doesn't exist
 dir_create(output_dir)
-
- 
-
 # Get unique AllianceProviderShortname values
 provider_names <- unique(Census_DC$AllianceProviderShortname)
-
- 
-
 # Get today's date in YYYY-MM-DD format
 today_date <- format(Sys.Date(), "%Y-%m-%d")
-
- 
 
 # Split the table by AllianceProviderShortname and save individual CSV files
 walk(provider_names, function(provider) {
   # Create provider-specific directory if it doesn't exist
   provider_dir <- file.path(output_dir, provider)
   dir_create(provider_dir)
-
- 
-
   # Filter data for the current provider
   provider_data <- filter(Census_DC, AllianceProviderShortname == provider)
-
- 
-
   # Construct file name with current date
   file_name <- file.path(provider_dir, paste0("AllianceCensus_DC_", provider, "_", today_date, ".csv"))
-
- 
-
   # Save data as CSV
   write.csv(provider_data, file = file_name, row.names = FALSE)
 })
+
+# Move files to the Census Data folder in their respective directories, repeat for each provider
+
+# CBI
+# Define the current directory path
+current_directory <- "./data/output/CBI"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/CBI/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#CPIH
+# Define the current directory path
+current_directory <- "./data/output/CPIH"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/CPIH/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#LCBHS
+# Define the current directory path
+current_directory <- "./data/output/LCBHC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/LCBHC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#MMHC
+# Define the current directory path
+current_directory <- "./data/output/MMHC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/MMHC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#PH
+# Define the current directory path
+current_directory <- "./data/output/PH"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/PH/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#SBHS
+# Define the current directory path
+current_directory <- "./data/output/SBHS"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/SBHS/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
+
+#SHG
+# Define the current directory path
+current_directory <- "./data/output/SHG"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/SHG/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+}
+
+#TGC
+# Define the current directory path
+current_directory <- "./data/output/TGC"  # Update with your current directory path
+# Define the new directory path
+new_directory <- "./data/output/TGC/CensusData/"
+# List all files in the current directory
+files_in_directory <- list.files(current_directory, pattern = "^AllianceDischargeCensus")
+# Move each file to the new directory and delete the original
+for (file_name in files_in_directory) {
+  current_file <- file.path(current_directory, file_name)
+  new_file <- file.path(new_directory, file_name)
+  file.rename(current_file, new_file)
+  cat("File moved:", current_file, "to", new_file, "\n")
+  }
 
 ```
 
