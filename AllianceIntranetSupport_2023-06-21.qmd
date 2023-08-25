@@ -634,34 +634,49 @@ for (file_name in files_in_directory) {
 
 This is the inpatient census received from HC Medical Management.
 
-```{sql, connection = DWPROD01, output.var = "AllianceInpatientCensus"}
-#| label: Alliance Inpatient Census
+### Import the data
+
+```{r}
+#| label: Inpatient Census
 #| eval: true
 #| include: false
 #| echo: false
 #| warning: false
 #| error: false
 
+# CensusInpatient_RPT <- readLines("./data/Input/CensusInpatient.rpt")
+# 
+# AllianceInpatientCensus <- data.frame(Content = CensusInpatient_RPT)
+# 
+# AllianceInpatientCensus <- cSplit(AllianceInpatientCensus, "Content", sep = " ")
+# 
+# RowsToRemove <- c(1, 3)
+# 
+# AllianceInpatientCensus <- AllianceInpatientCensus[-RowsToRemove]
+# 
+# headers <- as.character(AllianceInpatientCensus[1, ])
+# 
+# AllianceInpatientCensus <- AllianceInpatientCensus[-1, ]
 
+AllianceInpatientCensus <- read.csv("./data/Input/CensusInpatient.csv")
 
-SELECT *
-FROM BehavioralHealthAlliance.dbo.BHACensusInpatient
-```
-
-```{r}
-#| label: Demo Alliance Inpatient Census
-#| eval: false
-#| include: false
-#| echo: false
-#| warning: false
-#| error: false
-
-# For Demo
-# AllianceInpatientCensus <- read.csv("./data/Output/CensusData/AllianceInpatientCensus_2023-08-01.csv")
-
-CensusTest <- readLines("./data/CensusTest.rpt")
-
-CensusTest_df <- data.frame(Content = CensusTest, stringsAsFactors = FALSE)
+colnames(AllianceInpatientCensus) <- c("SourceSystem", 
+                                       "BuildVersion", 
+                                       "LastName", 
+                                       "MiddleInitial",
+                                       "FirstName",
+                                       "MemberID",
+                                       "PhoneNumber",
+                                       "AdmissionDate",
+                                       "LOS",
+                                       "Facility",
+                                       "FacilityType",
+                                       "StayType",
+                                       "AdmittingDiagnosisCode",
+                                       "AdmittingDiagnosisDescription",
+                                       "AdmissionAuthorizationIndicator",
+                                       "BuildDate"
+                                       )
 
 ```
 
@@ -684,7 +699,7 @@ write.csv(data, csv_file, row.names = FALSE)
 Census_IP <- AllianceInpatientCensus
 
 # Create AHCCCSID from MemberID
-Census_IP$AHCCCSID <- substr(Census_IP$MEM_ID, 4, nchar(Census_IP$MEM_ID))
+Census_IP$AHCCCSID <- substr(Census_IP$MemberID, 4, nchar(Census_IP$MemberID))
 
 # Attach enrollment data to census data
 Census_IP <- 
@@ -699,13 +714,12 @@ Census_IP <-
   select(
     PrimaryID,
     AHCCCSID,
-    LAST_NAME,
-    FIRST_NAME,
-    MEM_PHONE,
-    ADM_DTE,
+    LastName.x,
+    FirstName.x,
+    PhoneNumber,
+    AdmissionDate,
     LOS,
-    FACILITY_NAME,
-    FACILITY_TYPE_DESC,
+    Facility,
     Age,
     Sex,
     DateOfBirth,
@@ -714,19 +728,19 @@ Census_IP <-
     AllianceProviderShortname,
     EnrollmentStartDate,
     DisenrollmentDate
-    
-  )
+    ) |> 
+  arrange(AdmissionDate)
 
-Census_IP <-
-  Census_IP |> 
-  rename(
-    "LastName" = LAST_NAME,
-    "FirstName" = FIRST_NAME,
-    "Phone" = MEM_PHONE,
-    "AdmitDate" = ADM_DTE,
-    "Facility" = FACILITY_NAME,
-    "FacilityType" = FACILITY_TYPE_DESC
-  )
+# Census_IP <-
+#   Census_IP |> 
+#   rename(
+#     "LastName" = LAST_NAME,
+#     "FirstName" = FIRST_NAME,
+#     "Phone" = MEM_PHONE,
+#     "AdmitDate" = ADM_DTE,
+#     "Facility" = FACILITY_NAME,
+#     "FacilityType" = FACILITY_TYPE_DESC
+#   )
 
 # Set the output directory
 output_dir <- "./data/output/"
