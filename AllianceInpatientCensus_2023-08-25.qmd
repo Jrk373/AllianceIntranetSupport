@@ -250,7 +250,7 @@ if (length(files) > 0) {
 AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
 
 # Rename the columns to easy to understand names
-colnames(AllianceMemberEnrollmentRoster) <- c("Index", "PrimaryID", "AHCCCSID", "LastName", "FirstName", "Sex", "DateOfBirth", "MemberZipCode", "MemberCountyOfResidence", "AllianceProviderShortname", "EnrollmentStartDate", "LineOfBusiness", "EligibilityGroup", "DisenrollmentDate", "Age")
+#colnames(AllianceMemberEnrollmentRoster) <- c("Index", "PrimaryID", "AHCCCSID", "LastName", "FirstName", "Sex", "DateOfBirth", "MemberZipCode", "MemberCountyOfResidence", "AllianceProviderShortname", "EnrollmentStartDate", "LineOfBusiness", "EligibilityGroup", "DisenrollmentDate", "Age")
 
 ```
 
@@ -317,7 +317,7 @@ Census_IP <-
 Census_IP <-
   Census_IP |> 
   select(
-    PrimaryID,
+    PrimaryId,
     AHCCCSID,
     LastName.x,
     FirstName.x,
@@ -325,14 +325,29 @@ Census_IP <-
     AdmissionDate,
     LOS,
     Facility,
+    DOB,
     Age,
+    AgeGroups,
     Sex,
-    DateOfBirth,
-    MemberZipCode,
-    MemberCountyOfResidence,
-    AllianceProviderShortname,
-    EnrollmentStartDate,
-    DisenrollmentDate
+    Race,
+    Ethnicity,
+    SpokenLanguage,
+    EmploymentStatus,
+    MilitaryStatus,
+    BHHShortName,
+    BHHLongName,
+    BHHEffectiveDate,
+    EnrollmentDate,
+    DisenrollmentDate,
+    Address1,
+    Address2,
+    City,
+    State,
+    ZipCode,
+    County,
+    HomePhone,
+    EmergencyPhone,
+    EmailAddress
     ) |> 
   arrange(AdmissionDate)
 
@@ -552,25 +567,38 @@ Census_DC <-
 Census_DC <-
   Census_DC |> 
   select(
-    PrimaryID,
+    PrimaryId,
     AHCCCSID,
     LastName.x,
     FirstName.x,
-    #PhoneNumber,
     AdmissionDate,
     DischargeDate,
     LOS,
     DischargeDisposition,
     Facility,
+    DOB,
     Age,
+    AgeGroups,
     Sex,
-    DateOfBirth,
-    MemberZipCode,
-    MemberCountyOfResidence,
-    AllianceProviderShortname,
-    EnrollmentStartDate,
-    DisenrollmentDate
-    ) |> 
+    Race,
+    Ethnicity,
+    SpokenLanguage,
+    EmploymentStatus,
+    MilitaryStatus,
+    BHHShortName,
+    BHHLongName,
+    BHHEffectiveDate,
+    EnrollmentDate,
+    DisenrollmentDate,
+    Address1,
+    Address2,
+    City,
+    State,
+    ZipCode,
+    County,
+    HomePhone,
+    EmergencyPhone,
+    EmailAddress) |> 
   arrange(AdmissionDate)
 
 # Get today's date

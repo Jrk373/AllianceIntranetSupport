@@ -66,14 +66,14 @@ library(splitstackshape)
 AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
 
 # Rename the columns to easy to understand names
-colnames(AllianceMemberEnrollmentRoster) <- c("Index", "PrimaryID", "AHCCCSID", "LastName", "FirstName", "Sex", "DateOfBirth", "MemberZipCode", "MemberCountyOfResidence", "AllianceProviderShortname", "EnrollmentStartDate", "LineOfBusiness", "EligibilityGroup", "DisenrollmentDate", "Age")
+#colnames(AllianceMemberEnrollmentRoster) <- c("Index", "PrimaryID", "AHCCCSID", "LastName", "FirstName", "Sex", "DateOfBirth", "MemberZipCode", "MemberCountyOfResidence", "AllianceProviderShortname", "EnrollmentStartDate", "LineOfBusiness", "EligibilityGroup", "DisenrollmentDate", "Age")
 
 # Create a directory to store the CSV files
 data_dir <- "./data/output"
 dir.create(data_dir, showWarnings = FALSE)
 
 # Split the data frame based on AllianceProviderShortname
-split_data <- split(AllianceMemberEnrollmentRoster, AllianceMemberEnrollmentRoster$AllianceProviderShortname)
+split_data <- split(AllianceMemberEnrollmentRoster, AllianceMemberEnrollmentRoster$BHHShortName)
 
 # Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
 for (provider_name in names(split_data)) {
@@ -103,8 +103,13 @@ VBPQualityRoster <- read.csv("./data/VBPQR_AllAPsCombined_Cleaned_complete.csv")
 output_dir <- "./data/output/"
 dir.create(output_dir, showWarnings = FALSE)
 
+
+
+# Rename COlumn Names to easily understand
+colnames(c("X", "Measure", "GapStatus", "MemberID", "MemberName", "Phone", "DOB", "Age", "PCP_TIN", "PCP_Name", "AllianceProvider", "Provider_ShortName", "SubMeasureID"))
+
 # Split the data frame based on Provider_Shortname
-split_data <- split(VBPQualityRoster, VBPQualityRoster$Provider_Shortname)
+split_data <- split(VBPQualityRoster, VBPQualityRoster$Provider_ShortName)
 
 # Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
 for (provider_name in names(split_data)) {
