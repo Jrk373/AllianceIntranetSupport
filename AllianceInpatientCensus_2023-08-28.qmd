@@ -1,0 +1,285 @@
+---
+title: "Alliance Inpatient Daily Census"
+subtitle: "TBD"
+author: 
+  name: "John Ryan Kivela, MA"
+  email: "Ryan.Kivela@narbha.org"
+date: today
+date-format: long
+format:
+  html:
+    theme: pulse
+    embed-resources: true
+    toc: true
+    toc-depth: 6
+    code-fold: true
+    footnotes-hover: true
+---
+
+```{r}
+#| label: Setup
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+## Load Libraries
+ library(fs)
+# library(purrr)
+# library(readxl)
+ library(tidyverse)
+# library(lubridate)
+
+```
+
+# Enrollment Roster
+
+::: panel-tabset
+## Description
+
+Import the most recent enrollment roster. The Alliance Member Enrollment Roster is generated monthly as a part of the Alliance Progress Report.
+
+## Procedure
+
+## Code
+
+```{r}
+#| label: Alliance Member Enrollment Roster
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+# Import the data from the monthly Alliance Progress Report
+AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
+
+AllianceMemberEnrollmentRoster <-
+  AllianceMemberEnrollmentRoster |> 
+  select(
+    -SpokenLanguage,
+    -EmploymentStatus,
+    -MilitaryStatus
+  )
+
+```
+:::
+
+# Health Choice Daily Census Files
+
+::: panel-tabset
+## Description
+
+Run SQL on HC SQL server and import the files here. There is one file each for the Inpatient Census and the Discharge Census. The CSV from the SQL query from HCA comes in with no column headers, so those must be assigned.
+
+The census file is then combined with the enrollment roster to form a complete tool for the provider.
+
+## Procedure
+
+## Code
+
+```{r}
+#| label: HCA Daily inpatient census import
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceInpatientCensus <- read.csv("./data/Input/CensusInpatient.csv")
+
+colnames(AllianceInpatientCensus) <- c("SourceSystem", 
+                                       "BuildVersion", 
+                                       "LastName", 
+                                       "MiddleInitial",
+                                       "FirstName",
+                                       "MemberID",
+                                       "PhoneNumber",
+                                       "AdmissionDate",
+                                       "LOS",
+                                       "Facility",
+                                       "FacilityType",
+                                       "StayType",
+                                       "AdmittingDiagnosisCode",
+                                       "AdmittingDiagnosisDescription",
+                                       "AdmissionAuthorizationIndicator",
+                                       "BuildDate"
+                                       )
+
+```
+
+```{r}
+#| label: HCA Daily discharge census import
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceDischargeCensus <- read.csv("./data/Input/CensusDischarge.csv")
+
+colnames(AllianceDischargeCensus) <- c("SourceSystem",
+                                       "BuildVersion", 
+                                       "LastName",
+                                       "MiddleInitial",
+                                       "FirstName",
+                                       "MemberID",
+                                       "AdmissionDate",
+                                       "DischargeDate",
+                                       "LOS",
+                                       "DischargeDisposition",
+                                       "Facility",
+                                       "FacilityType",
+                                       "StayType",
+                                       "AdmittingDiagnosisCode",
+                                       "AdmittingDiagnosisDescription",
+                                       "DischargeDiagnosisCode",
+                                       "DischargeDiagnosisDescription",
+                                       "AdmissionAuthorizationIndicator",
+                                       "BuildDate"
+                                       )
+```
+
+```{r}
+#| label: Merge Census Files
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceDailyInpatientCensus <-
+  merge(x = AllianceInpatientCensus,
+        y = AllianceDischargeCensus,
+        by = c("LastName", "FirstName", "AdmissionDate", "Facility"),
+        all.x = TRUE)
+```
+
+```{r}
+#| label: Select variable and calc LOS
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+# Create AHCCCSID from MemberID
+AllianceDailyInpatientCensus$AHCCCSID <- substr(AllianceDailyInpatientCensus$MemberID.x, 4, nchar(AllianceDailyInpatientCensus$MemberID.x))
+
+# Select Variables
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  select(
+    AHCCCSID,
+    LastName,
+    FirstName,
+    Facility,
+    AdmissionDate,
+    DischargeDate,
+    DischargeDisposition,
+    FacilityType.x,
+    StayType.x
+  )
+
+# Calculate LOS
+AllianceDailyInpatientCensus$AdmissionDate <- as.Date(AllianceDailyInpatientCensus$AdmissionDate)
+AllianceDailyInpatientCensus$DischargeDate <- as.Date(AllianceDailyInpatientCensus$DischargeDate)
+
+AllianceDailyInpatientCensus$LengthofStay <-
+  (AllianceDailyInpatientCensus$DischargeDate - AllianceDailyInpatientCensus$AdmissionDate)
+```
+
+```{r}
+#| label: combine with enrollment roster
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+# Merge tables
+AllianceDailyInpatientCensus <-
+  merge(x = AllianceDailyInpatientCensus,
+        y = AllianceMemberEnrollmentRoster,
+        by = "AHCCCSID",
+        all.x = TRUE)
+
+# Rename some columns
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  rename(
+    LastName = "LastName.x",
+    FirstName = "FirstName.x",
+    FacilityType = "FacilityType.x",
+    StayType = "StayType.x"
+  ) |> 
+  select(
+    -X, 
+    -FirstName.y,
+    -LastName.y,
+    -DOD
+  )
+
+# Remove duplicates
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  distinct(
+    AHCCCSID,
+    LastName,
+    AdmissionDate,
+    .keep_all = TRUE
+  )
+
+# Arrange by Admit date and AHCCCSID
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  arrange(desc(AdmissionDate), AHCCCSID)
+
+# Write to CSV
+write.csv("./data/Output/CensusData/AllianceDailyInpatientCensus.csv")
+
+```
+:::
+
+# Distribute Data
+
+::: panel-tabset
+
+## Description
+
+The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
+
+## Procedure
+
+## Code
+
+```{r}
+# Create a directory to store the CSV files
+data_dir <- "./data/output"
+dir.create(data_dir, showWarnings = FALSE)
+
+# Split the data frame based on AllianceProviderShortname
+split_data <- split(AllianceDailyInpatientCensus, AllianceDailyInpatientCensus$BHHShortName)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  folder_name <- file.path(data_dir, provider_name)
+  dir.create(folder_name, showWarnings = FALSE)
+  file_name <- file.path(folder_name, paste0("AllianceDailyInpatientCensus_", provider_name, ".csv"))
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
+```
+
+:::
+
+
+
+
+
+
+
+
+
+
