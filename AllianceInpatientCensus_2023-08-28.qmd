@@ -59,7 +59,7 @@ AllianceMemberEnrollmentRoster <-
   AllianceMemberEnrollmentRoster |> 
   select(
     -SpokenLanguage,
-    -EmploymentStatus,
+    #-EmploymentStatus,
     -MilitaryStatus
   )
 
@@ -178,8 +178,8 @@ AllianceDailyInpatientCensus <-
     AdmissionDate,
     DischargeDate,
     DischargeDisposition,
-    FacilityType.x,
-    StayType.x
+    #FacilityType.x,
+    #StayType.x
   )
 
 # Calculate LOS
@@ -211,8 +211,8 @@ AllianceDailyInpatientCensus <-
   rename(
     LastName = "LastName.x",
     FirstName = "FirstName.x",
-    FacilityType = "FacilityType.x",
-    StayType = "StayType.x"
+    #FacilityType = "FacilityType.x",
+    #StayType = "StayType.x"
   ) |> 
   select(
     -X, 
@@ -237,7 +237,7 @@ AllianceDailyInpatientCensus <-
   arrange(desc(AdmissionDate), AHCCCSID)
 
 # Write to CSV
-write.csv("./data/Output/CensusData/AllianceDailyInpatientCensus.csv")
+write.csv(AllianceDailyInpatientCensus,"./data/Output/AllianceDailyInpatientCensus.csv")
 
 ```
 :::

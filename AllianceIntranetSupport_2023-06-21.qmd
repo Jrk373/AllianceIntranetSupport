@@ -49,7 +49,7 @@ library(lubridate)
 library(splitstackshape)
 
 # Set up ODBC Connection
- DWPROD01 <- DBI::dbConnect(odbc::odbc(),"BehavioralHealthAlliance")
+# DWPROD01 <- DBI::dbConnect(odbc::odbc(),"BehavioralHealthAlliance")
 ```
 
 # Alliance Member Enrollment Roster
@@ -63,7 +63,7 @@ library(splitstackshape)
 #| error: false
 
 # Import the data from the monthly Alliance Progress Report
-AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
+#AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
 
 # Rename the columns to easy to understand names
 #colnames(AllianceMemberEnrollmentRoster) <- c("Index", "PrimaryID", "AHCCCSID", "LastName", "FirstName", "Sex", "DateOfBirth", "MemberZipCode", "MemberCountyOfResidence", "AllianceProviderShortname", "EnrollmentStartDate", "LineOfBusiness", "EligibilityGroup", "DisenrollmentDate", "Age")
@@ -97,7 +97,7 @@ for (provider_name in names(split_data)) {
 #| error: false
 
 # Import the data from the VBPValidationReport
-VBPQualityRoster <- read.csv("./data/VBPQR_AllAPsCombined_Cleaned_complete.csv")
+VBPQualityRoster <- read.csv("./data/Data_VBPQR_AllRecords.csv")
 
 # Create the output directory
 output_dir <- "./data/output/"
@@ -106,10 +106,10 @@ dir.create(output_dir, showWarnings = FALSE)
 
 
 # Rename COlumn Names to easily understand
-colnames(c("X", "Measure", "GapStatus", "MemberID", "MemberName", "Phone", "DOB", "Age", "PCP_TIN", "PCP_Name", "AllianceProvider", "Provider_ShortName", "SubMeasureID"))
+# colnames(c("X", "Measure", "GapStatus", "MemberID", "MemberName", "Phone", "DOB", "Age", "PCP_TIN", "PCP_Name", "AllianceProvider", "Provider_ShortName", "SubMeasureID"))
 
 # Split the data frame based on Provider_Shortname
-split_data <- split(VBPQualityRoster, VBPQualityRoster$Provider_ShortName)
+split_data <- split(VBPQualityRoster, VBPQualityRoster$ProviderShortname)
 
 # Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
 for (provider_name in names(split_data)) {
@@ -139,39 +139,39 @@ for (provider_name in names(split_data)) {
 #| warning: false
 #| error: false
 
-# import data
-FUH7_MemberFollowUpList <- read.csv("./data/FUH7_MemberFollowUpList.csv")
-
-# Rename the columns to easy to understand names
-colnames(FUH7_MemberFollowUpList) <- c("Index", "MemberID", "VBPEligible", "ClaimsEligible", "ValidationMatch", "ClaimsPrimaryID", "EnrollmentPrimaryID", "AHCCCSID", "LastName", "FirstName", "DateOfBirth", "Sex", "Age", "MemberZipCode", "DateOfService", "EndDateOfService", "AdjudicatedServiceCode", "ProcedureCode", "RevCode", "PlaceOfService", "Providertype", "PrimaryDiagnosis", "Dx1", "Dx2", "Dx3", "Dx4", "Dx5", "Dx6", "Dx7", "Dx8", "Dx9" , "Dx10", "Dx11", "Dx12", "ProviderName", "RenderingProviderNPI", "AutoAssignedPCPName", "AmountPaid", "AllianceProviderShortname", "EligibleMHDiagnosis")
-
-# Replace "Polara" with "PH"
-FUH7_MemberFollowUpList$AllianceProviderShortname <- ifelse(FUH7_MemberFollowUpList$AllianceProviderShortname == "Polara", "PH", FUH7_MemberFollowUpList$AllianceProviderShortname)
-
-# Replace "SBH" with "SBHS"
-FUH7_MemberFollowUpList$AllianceProviderShortname <- ifelse(FUH7_MemberFollowUpList$AllianceProviderShortname == "SBH", "SBHS", FUH7_MemberFollowUpList$AllianceProviderShortname)
-
-# Create the output directory
-output_dir <- "./data/output/"
-dir.create(output_dir, showWarnings = FALSE)
-
-# Split the data frame based on AllianceProviderShortname
-split_data <- split(FUH7_MemberFollowUpList, FUH7_MemberFollowUpList$AllianceProviderShortname)
-
-# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
-for (provider_name in names(split_data)) {
-  provider_data <- split_data[[provider_name]]
-  
-  # Create the folder for the provider if it doesn't exist
-  provider_folder <- file.path(output_dir, provider_name)
-  dir.create(provider_folder, showWarnings = FALSE, recursive = TRUE)
-  
-  # Construct the file name
-  file_name <- file.path(provider_folder, paste0("FUH7_MemberFollowUpList_", provider_name, ".csv"))
-  
-  # Save the data frame as a CSV file
-  write.csv(provider_data, file = file_name, row.names = FALSE)
-}
+# # import data
+# FUH7_MemberFollowUpList <- read.csv("./data/FUH7_MemberFollowUpList.csv")
+# 
+# # Rename the columns to easy to understand names
+# colnames(FUH7_MemberFollowUpList) <- c("Index", "MemberID", "VBPEligible", "ClaimsEligible", "ValidationMatch", "ClaimsPrimaryID", "EnrollmentPrimaryID", "AHCCCSID", "LastName", "FirstName", "DateOfBirth", "Sex", "Age", "MemberZipCode", "DateOfService", "EndDateOfService", "AdjudicatedServiceCode", "ProcedureCode", "RevCode", "PlaceOfService", "Providertype", "PrimaryDiagnosis", "Dx1", "Dx2", "Dx3", "Dx4", "Dx5", "Dx6", "Dx7", "Dx8", "Dx9" , "Dx10", "Dx11", "Dx12", "ProviderName", "RenderingProviderNPI", "AutoAssignedPCPName", "AmountPaid", "AllianceProviderShortname", "EligibleMHDiagnosis")
+# 
+# # Replace "Polara" with "PH"
+# FUH7_MemberFollowUpList$AllianceProviderShortname <- ifelse(FUH7_MemberFollowUpList$AllianceProviderShortname == "Polara", "PH", FUH7_MemberFollowUpList$AllianceProviderShortname)
+# 
+# # Replace "SBH" with "SBHS"
+# FUH7_MemberFollowUpList$AllianceProviderShortname <- ifelse(FUH7_MemberFollowUpList$AllianceProviderShortname == "SBH", "SBHS", FUH7_MemberFollowUpList$AllianceProviderShortname)
+# 
+# # Create the output directory
+# output_dir <- "./data/output/"
+# dir.create(output_dir, showWarnings = FALSE)
+# 
+# # Split the data frame based on AllianceProviderShortname
+# split_data <- split(FUH7_MemberFollowUpList, FUH7_MemberFollowUpList$AllianceProviderShortname)
+# 
+# # Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+# for (provider_name in names(split_data)) {
+#   provider_data <- split_data[[provider_name]]
+#   
+#   # Create the folder for the provider if it doesn't exist
+#   provider_folder <- file.path(output_dir, provider_name)
+#   dir.create(provider_folder, showWarnings = FALSE, recursive = TRUE)
+#   
+#   # Construct the file name
+#   file_name <- file.path(provider_folder, paste0("FUH7_MemberFollowUpList_", provider_name, ".csv"))
+#   
+#   # Save the data frame as a CSV file
+#   write.csv(provider_data, file = file_name, row.names = FALSE)
+# }
 
 ```
 

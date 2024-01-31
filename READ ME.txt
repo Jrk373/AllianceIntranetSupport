@@ -1,0 +1,8 @@
+This project is a set of procedures to populate the Alliance Individualized Dashboard Sharepoint Websites.
+
+The principle components are:
+
+	1. Alliance Enrolled Membership Roster
+	2. Alliance Inpatient Census
+	3. VBP Quality Roster
+	4. Alliance Health Information Exchange Tool
