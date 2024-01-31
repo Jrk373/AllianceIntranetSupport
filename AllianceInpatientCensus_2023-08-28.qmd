@@ -16,6 +16,8 @@ format:
     footnotes-hover: true
 ---
 
+# Setup
+
 ```{r}
 #| label: Setup
 #| eval: true
@@ -31,18 +33,13 @@ format:
  library(tidyverse)
 # library(lubridate)
 
+DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
+
 ```
 
 # Enrollment Roster
 
-::: panel-tabset
-## Description
-
 Import the most recent enrollment roster. The Alliance Member Enrollment Roster is generated monthly as a part of the Alliance Progress Report.
-
-## Procedure
-
-## Code
 
 ```{r}
 #| label: Alliance Member Enrollment Roster
@@ -64,20 +61,12 @@ AllianceMemberEnrollmentRoster <-
   )
 
 ```
-:::
 
 # Health Choice Daily Census Files
-
-::: panel-tabset
-## Description
 
 Run SQL on HC SQL server and import the files here. There is one file each for the Inpatient Census and the Discharge Census. The CSV from the SQL query from HCA comes in with no column headers, so those must be assigned.
 
 The census file is then combined with the enrollment roster to form a complete tool for the provider.
-
-## Procedure
-
-## Code
 
 ```{r}
 #| label: HCA Daily inpatient census import
@@ -240,19 +229,10 @@ AllianceDailyInpatientCensus <-
 write.csv(AllianceDailyInpatientCensus,"./data/Output/AllianceDailyInpatientCensus.csv")
 
 ```
-:::
 
 # Distribute Data
 
-::: panel-tabset
-
-## Description
-
 The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
-
-## Procedure
-
-## Code
 
 ```{r}
 # Create a directory to store the CSV files
@@ -272,7 +252,6 @@ for (provider_name in names(split_data)) {
 }
 ```
 
-:::
 
 
 

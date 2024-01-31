@@ -39,6 +39,7 @@ library(DBI)
 # PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A")
 # QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
 
+
 ```
 
 # Pre-load data
@@ -150,102 +151,9 @@ HIE_Roster <-
 
 ```
 
-
-
-# Enrollment Roster
-
-## Description
-
-Import the most HIE roster. The Alliance Member Enrollment Roster is generated monthly as a part of the Alliance Progress Report.
-
-## Procedure
-
-## Code
-
-```{r}
-#| label: Alliance Member Enrollment Roster
-#| eval: true
-#| include: true
-#| echo: true
-#| warning: false
-#| error: false
-
-# Import the data from the monthly Alliance Progress Report
-AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
-
-AllianceMemberEnrollmentRoster <-
-  AllianceMemberEnrollmentRoster |> 
-  select(
-    -SpokenLanguage,
-    #-EmploymentStatus,
-    -MilitaryStatus
-  )
-
-```
-
-```{r}
-#| label: combine with enrollment roster
-#| eval: true
-#| include: true
-#| echo: true
-#| warning: false
-#| error: false
-
-# Merge tables
-AllianceDailyInpatientCensus <-
-  merge(x = HIE,
-        y = AllianceMemberEnrollmentRoster,
-        by = "AHCCCSID",
-        all.x = TRUE)
-
-# Rename some columns
-AllianceDailyInpatientCensus <-
-  AllianceDailyInpatientCensus |> 
-  rename(
-    LastName = "LastName.x",
-    FirstName = "FirstName.x",
-    #FacilityType = "FacilityType.x",
-    #StayType = "StayType.x"
-  ) |> 
-  select(
-    -X, 
-    -FirstName.y,
-    -LastName.y,
-    -DOD
-  )
-
-# Remove duplicates
-AllianceDailyInpatientCensus <-
-  AllianceDailyInpatientCensus |> 
-  distinct(
-    AHCCCSID,
-    LastName,
-    AdmissionDate,
-    .keep_all = TRUE
-  )
-
-# Arrange by Admit date and AHCCCSID
-AllianceDailyInpatientCensus <-
-  AllianceDailyInpatientCensus |> 
-  arrange(desc(AdmissionDate), AHCCCSID)
-
-# Write to CSV
-write.csv(AllianceDailyInpatientCensus,"./data/Output/AllianceDailyInpatientCensus.csv")
-
-```
-:::
-
 # Distribute Data
 
-::: panel-tabset
-
-## Description
-
 The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
-
-## Procedure
-
-## Code
 
 ```{r}
 # Create a directory to store the CSV files

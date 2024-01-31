@@ -17,11 +17,11 @@ format:
     footnotes-hover: true
 ---
 
-This document provides the data framework for the Alliance Enrolled Membershiop roster
+This document provides the data framework for the Alliance Enrolled Membership roster
 
 # Method
 
-This code sets up the project, installing libraries, setting parameters for the renderred document, and creating various tables and vectors of data that will be incorporated later.
+This code sets up the project, installing libraries, setting parameters for the rendered document, and creating various tables and vectors of data that will be incorporated later.
 
 ## r Setup
 
@@ -625,11 +625,35 @@ AllianceEnrolledMembers <-
 #| warning: false
 #| error: false
 
+# Filter for only most recent enrollment segment
+AllianceEnrolledMembers <-
+  Data_AllianceEnrolledMembers %>%
+  group_by(AhcccsId) %>%
+  filter(EnrollmentDate == max(EnrollmentDate))
+
 # Write to CSV
  write.csv(AllianceEnrolledMembers, "./data/input/AllianceEnrolledMembers.csv")
 
-# Set up for intranet support
+```
 
-AllianceMemberEnrollmentRoster <- AllianceEnrolledMembers
+# Distribute Data
 
+The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
+
+```{r}
+# Create a directory to store the CSV files
+data_dir <- "./data/output"
+dir.create(data_dir, showWarnings = FALSE)
+
+# Split the data frame based on AllianceProviderShortname
+split_data <- split(AllianceEnrolledMembers, AllianceEnrolledMembers$BHHShortName)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  folder_name <- file.path(data_dir, provider_name)
+  dir.create(folder_name, showWarnings = FALSE)
+  file_name <- file.path(folder_name, paste0("AllianceEnrolledMembers_", provider_name, ".csv"))
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
 ```

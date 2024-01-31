@@ -6,3 +6,8 @@ The principle components are:
 	2. Alliance Inpatient Census
 	3. VBP Quality Roster
 	4. Alliance Health Information Exchange Tool
+	
+	The process should work like this:
+	
+	1. Calculate the Alliance Member Roster
+	2. 
