@@ -1,0 +1,87 @@
+---
+title: "AllianceIntranetSupport"
+subtitle: "TBD"
+author: 
+  name: "John Ryan Kivela, MA"
+  email: "Ryan.Kivela@narbha.org"
+date: today
+date-format: long
+format:
+  html:
+    theme: pulse
+    embed-resources: true
+    toc: true
+    toc-depth: 6
+    code-fold: true
+    footnotes-hover: true
+---
+
+# Setup
+
+```{r}
+#| label: Setup
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+## Load Libraries
+library(tidyverse)
+
+```
+
+# Provider Sharepoint Partner List
+
+## Import the Intranet Partners data
+
+```{r}
+#| label: Website Partners
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+#Import Data
+IntranetWebsitePartners <- read_xlsx("./data/Aid-IntranetWebsitePartners.xlsx", sheet = "Sheet1")
+
+```
+
+## Distribute the data
+
+```{r}
+#| label: Website Partners
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Set the output directory
+output_dir <- "./data/output/"
+
+# Create the output directory if it doesn't exist
+dir_create(output_dir)
+
+# Get unique AllianceProviderShortname values
+provider_names <- unique(IntranetWebsitePartners$AllianceProviderShortname)
+
+# Split the table by AllianceProviderShortname and save individual CSV files
+walk(provider_names, function(provider) {
+  # Create provider-specific directory if it doesn't exist
+  provider_dir <- file.path(output_dir, provider)
+  dir_create(provider_dir)
+  
+  # Filter data for the current provider
+  provider_data <- filter(IntranetWebsitePartners, AllianceProviderShortname == provider)
+  
+  # Construct file name with current date
+  file_name <- file.path(provider_dir, paste0("IntranetWebsitePartners_", provider, ".csv"))
+  
+  # Save data as CSV
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+})
+
+```
+

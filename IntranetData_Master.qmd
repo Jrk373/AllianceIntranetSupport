@@ -37,9 +37,32 @@ This code sets up the project, installing libraries, setting parameters for the 
 library(tidyverse)
 library(readxl)
 library(odbc)
+library(fs) # Inpatient Census
 
 # Set up ODBC Connection
 QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
+PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A") # HIE
+
+```
+
+## Pre-Load Data
+
+Pre-load already processed data for testing.
+
+```{r}
+#| label: Pre-Load Data
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# GM_Enrollments_AllACC   <- read.csv("./data/input/GM_Enrollments_AllACC.csv")
+# GM_ALLAZ_Enrollments    <- read.csv("./data/input/GM_ALLAZ_Enrollments.csv")
+# GM_Clients_Demographics <- read.csv("./data/input/GM_Clients_Demographics.csv")
+# GM_ALLAZ_Addresses      <- read.csv("./data/input/GM_ALLAZ_Addresses.csv")
+# GM_DUGLess              <- read.csv("./data/input/GM_DUGLess.csv")
+# LastService             <- read.csv("./data/input/LastService.csv")
 
 ```
 
@@ -97,7 +120,7 @@ BHHShortName = c("PH", "WYGC", "SHG", "MMHC", "CPIH", "TGC", "LCBHC", "SBH", "EH
 
 ```
 
-## Enrollments
+# Enrollments
 
 The next few code sets queries the HCA data bases to gather data from the Global Members Data base.
 
@@ -240,12 +263,12 @@ WHERE rn = 1
 
 ```{r}
 # Write enrollment data to files for easy test load.
-# write.csv(GM_ALLAZ_Addresses, "./data/input/GM_AllAZAddresses.csv")
-# write.csv(GM_ALLAZ_Enrollments, "./data/input/GM_AllAZ_Enrollments.csv")
-# write.csv(GM_Clients_Demographics, "./data/input/GM_Clients_Demographics.csv")
-# write.csv(GM_DUGLess, "./data/input/GM_DUGLess.csv")
-# write.csv(GM_Enrollments_AllACC, "./data/input/GM_Enrollments_AllACC.csv")
-# write.csv(LastService, "./data/input/LastService.csv")
+write.csv(GM_ALLAZ_Addresses, "./data/input/GM_AllAZAddresses.csv")
+write.csv(GM_ALLAZ_Enrollments, "./data/input/GM_AllAZ_Enrollments.csv")
+write.csv(GM_Clients_Demographics, "./data/input/GM_Clients_Demographics.csv")
+write.csv(GM_DUGLess, "./data/input/GM_DUGLess.csv")
+write.csv(GM_Enrollments_AllACC, "./data/input/GM_Enrollments_AllACC.csv")
+write.csv(LastService, "./data/input/LastService.csv")
 ```
 
 ### Enrollment Calculation
@@ -282,6 +305,13 @@ AllianceEnrolledMembers_Merge <-
         y = GM_ALLAZ_Enrollments, # Adds AHCCCSID and BHHShortname
         by = "PrimaryId",
         all.x = TRUE)
+
+AllianceEnrolledMembers_Merge <- 
+  AllianceEnrolledMembers_Merge %>%
+  mutate(
+    BHHShortName = if_else(BHHShortName == "SBH", "SBHS",
+                           if_else(BHHShortName == "WYGC", "PH", BHHShortName))
+  )
 
 AllianceEnrolledMembers_Merge <-
   AllianceEnrolledMembers_Merge |> 
@@ -363,9 +393,9 @@ AllianceEnrolledMembers <-
 
 # Filter out end dated enrollment segments
 # This leaves us with only active enrollments
-AllianceEnrolledMembers <-
-  AllianceEnrolledMembers |>
-  filter(is.na(DisenrollmentDate))
+# AllianceEnrolledMembers <-
+#   AllianceEnrolledMembers |> 
+#   filter(is.na(DisenrollmentDate))
 
 # This table is the record of all living individuals who have an enrollment with BCBS HCA ACC health plan who are auto-assigned to an Alliance Provider, and who have a residential address in the northern GSA counties. In other words, this is a roster of all Alliance ACO members.
 
@@ -608,7 +638,7 @@ LastService <-
          "LastSvcProv_FedTaxID" = Fedtaxid,
          "LastSvcProvNPI" = RenderingProviderNpi)
 
-Data_AllianceEnrolledMembers <- 
+AllianceEnrolledMembers <- 
   merge(x = AllianceEnrolledMembers,
         y = LastService, # add last service information
         by = "PrimaryId",
@@ -624,6 +654,8 @@ Data_AllianceEnrolledMembers <-
 #| echo: true
 #| warning: false
 #| error: false
+
+Data_AllianceEnrolledMembers <- AllianceEnrolledMembers
 
 # All members, all enrollment segments
 write.csv(Data_AllianceEnrolledMembers, "./data/output/AllianceEnrolledMembers_AllSegments.csv")
@@ -646,10 +678,10 @@ ActiveNAZMembership <-
   filter(is.na(DisenrollmentDate))
 
 # Write to CSV
- write.csv(ActiveNAZMembership, "./data/output/ActiveNAZMembership.csv") 
+write.csv(ActiveNAZMembership, "./data/output/ActiveNAZMembership.csv") 
 ```
 
-# Distribute Data
+### Distribute Data
 
 The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
 
@@ -669,4 +701,426 @@ for (provider_name in names(split_data)) {
   file_name <- file.path(folder_name, paste0("ActiveNAZMembership_", provider_name, ".csv"))
   write.csv(provider_data, file = file_name, row.names = FALSE)
 }
+```
+
+# Census
+
+## Health Choice Daily Census Files
+
+Run SQL on HC SQL server and import the files here. There is one file each for the Inpatient Census and the Discharge Census. The CSV from the SQL query from HCA comes in with no column headers, so those must be assigned.
+
+The census file is then combined with the enrollment roster to form a complete tool for the provider.
+
+```{r}
+#| label: HCA Daily inpatient census import
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceInpatientCensus <- read.csv("./data/Input/CensusInpatient.csv")
+
+colnames(AllianceInpatientCensus) <- c("SourceSystem", 
+                                       "BuildVersion", 
+                                       "LastName", 
+                                       "MiddleInitial",
+                                       "FirstName",
+                                       "MemberID",
+                                       "PhoneNumber",
+                                       "AdmissionDate",
+                                       "LOS",
+                                       "Facility",
+                                       "FacilityType",
+                                       "StayType",
+                                       "AdmittingDiagnosisCode",
+                                       "AdmittingDiagnosisDescription",
+                                       "AdmissionAuthorizationIndicator",
+                                       "BuildDate"
+                                       )
+
+```
+
+```{r}
+#| label: HCA Daily discharge census import
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceDischargeCensus <- read.csv("./data/Input/CensusDischarge.csv")
+
+colnames(AllianceDischargeCensus) <- c("SourceSystem",
+                                       "BuildVersion", 
+                                       "LastName",
+                                       "MiddleInitial",
+                                       "FirstName",
+                                       "MemberID",
+                                       "AdmissionDate",
+                                       "DischargeDate",
+                                       "LOS",
+                                       "DischargeDisposition",
+                                       "Facility",
+                                       "FacilityType",
+                                       "StayType",
+                                       "AdmittingDiagnosisCode",
+                                       "AdmittingDiagnosisDescription",
+                                       "DischargeDiagnosisCode",
+                                       "DischargeDiagnosisDescription",
+                                       "AdmissionAuthorizationIndicator",
+                                       "BuildDate"
+                                       )
+```
+
+```{r}
+#| label: Merge Census Files
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+AllianceDailyInpatientCensus <-
+  merge(x = AllianceInpatientCensus,
+        y = AllianceDischargeCensus,
+        by = c("LastName", "FirstName", "AdmissionDate", "Facility"),
+        all.x = TRUE)
+```
+
+```{r}
+#| label: Select variable and calc LOS
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+# Create AHCCCSID from MemberID
+AllianceDailyInpatientCensus$AHCCCSID <- substr(AllianceDailyInpatientCensus$MemberID.x, 4, nchar(AllianceDailyInpatientCensus$MemberID.x))
+
+# Select Variables
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  select(
+    AHCCCSID,
+    LastName,
+    FirstName,
+    Facility,
+    AdmissionDate,
+    DischargeDate,
+    DischargeDisposition,
+    #FacilityType.x,
+    #StayType.x
+  )
+
+# Calculate LOS
+AllianceDailyInpatientCensus$AdmissionDate <- as.Date(AllianceDailyInpatientCensus$AdmissionDate)
+AllianceDailyInpatientCensus$DischargeDate <- as.Date(AllianceDailyInpatientCensus$DischargeDate)
+
+AllianceDailyInpatientCensus$LengthofStay <-
+  (AllianceDailyInpatientCensus$DischargeDate - AllianceDailyInpatientCensus$AdmissionDate)
+```
+
+```{r}
+#| label: combine with enrollment roster
+#| eval: true
+#| include: true
+#| echo: true
+#| warning: false
+#| error: false
+
+# Merge tables
+AllianceDailyInpatientCensus <-
+  merge(x = AllianceDailyInpatientCensus,
+        y = AllianceMemberEnrollmentRoster,
+        by = "AHCCCSID",
+        all.x = TRUE)
+
+# Rename some columns
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  rename(
+    LastName = "LastName.x",
+    FirstName = "FirstName.x",
+    #FacilityType = "FacilityType.x",
+    #StayType = "StayType.x"
+  ) |> 
+  select(
+    -X, 
+    -FirstName.y,
+    -LastName.y,
+    -DOD
+  )
+
+# Remove duplicates
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  distinct(
+    AHCCCSID,
+    LastName,
+    AdmissionDate,
+    .keep_all = TRUE
+  )
+
+# Arrange by Admit date and AHCCCSID
+AllianceDailyInpatientCensus <-
+  AllianceDailyInpatientCensus |> 
+  arrange(desc(AdmissionDate), AHCCCSID)
+
+# Write to CSV
+write.csv(AllianceDailyInpatientCensus,"./data/Output/AllianceDailyInpatientCensus.csv")
+
+```
+
+## Distribute Data
+
+The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
+
+```{r}
+# Create a directory to store the CSV files
+data_dir <- "./data/output"
+dir.create(data_dir, showWarnings = FALSE)
+
+# Split the data frame based on AllianceProviderShortname
+split_data <- split(AllianceDailyInpatientCensus, AllianceDailyInpatientCensus$BHHShortName)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  folder_name <- file.path(data_dir, provider_name)
+  dir.create(folder_name, showWarnings = FALSE)
+  file_name <- file.path(folder_name, paste0("AllianceDailyInpatientCensus_", provider_name, ".csv"))
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
+```
+
+# HIE Data
+
+This part of the program queries the BCBSAZ HCA data warehouse for the HIE data. This data is updated daily.
+
+*As of 1/31/24 this table is not working on the HCA side. HCA data people are working on it. In the meantime we are using demo data from December 2023.*
+
+```{sql, connection = PHXSQLP01A, output.var = "Data_HIE"}
+
+Declare @start as date = '12-01-2023'
+Declare @end as date = '12-31-2023'
+
+SELECT * 
+
+FROM HIEHL7.dbo.MasterHL7Item
+
+WHERE Admit_DateTime BETWEEN @start AND @end
+
+--WHERE admit_dateTime >= DATEADD(day, -30, getdate())
+
+```
+
+## HIE Data Wrangling
+
+The HIE data is well known for being a hot mess. This next set of procedures wrangles the raw data into a usable format.
+
+```{r}
+
+# Select variables
+HIE <-
+  Data_HIE |> 
+  select(28, 3, 4, 5, 8, 11, 12, 13, 15:21) |> 
+  mutate_all(str_squish)
+
+# Split Name into first name/last name
+
+HIE <-
+  HIE |> 
+  separate(Name, into = c("FirstName", "Remaining"), 
+           sep = " ", 
+           extra = "merge") |> 
+  separate(Remaining, into = c("MiddleName", "LastName"), 
+           sep = " ", 
+           extra = "merge", 
+           fill = "right") |> 
+  mutate(PointOfCare_ED = ifelse(grepl("ED", PointOfCare), 1, 0)) |> 
+  filter(MessageTypeDescription == "REGISTER A PATIENT" | MessageTypeDescription == "DISCHARGE/END VISIT") |> 
+  group_by(VisitNumber) |>
+  mutate(Discharge_DateTime = ifelse(MessageType == "A04" & any(MessageType == "A03"), max(Discharge_DateTime[MessageType == "A03"]), Discharge_DateTime)) |> 
+  filter(MessageType == "A04") |> 
+  select(1, 4, 2, 5, 6, 8, 18, 9, 10, 16, 17) |> 
+  rename(AhcccsId = "AHCCCSId") |> 
+  mutate_all(str_squish)
+
+# Get the current date
+current_date <- Sys.Date()
+
+# Create the file name with the current date
+file_name <- paste0("./data/input/Data_HIE/HIE_", current_date, ".csv")
+
+# Write the HIE table to the CSV file
+write.csv(HIE, file_name, row.names = FALSE)
+
+```
+
+```{r}
+
+HIE_Roster1 <-
+  merge(x = HIE,
+        y = AllianceEnrolledMembers,
+        by = "AhcccsId") |> 
+        #,
+        #all.x = TRUE) |> 
+  filter(AhcccsId != "") |> 
+  select(1, 12, 13, 14, 19, 5, 8, 9, 7, 6, 15:18, 21:44) |> 
+  rename(LastName = "LastName.y",
+         FirstName = "FirstName.y",
+         DOB = "DOB.y")
+
+HIE_Roster2 <-
+  HIE |> 
+  filter(AhcccsId == "")
+
+HIE_Roster2 <-
+  merge(x = HIE_Roster2,
+        y = AllianceEnrolledMembers,
+        by = c("LastName", "FirstName")) |> 
+        #,
+        #all.x = TRUE) |> 
+  filter(!is.na(PrimaryId)) |> 
+  select(3, 12, 1, 2, 18, 5, 8, 9, 7, 6, 14:17, 20:43) |> 
+  rename(AhcccsId = "AhcccsId.x",
+         DOB = "DOB.y")
+
+HIE_Roster <-
+  rbind(HIE_Roster1, 
+        HIE_Roster2)
+
+```
+
+## Distribute Data
+
+The overall Alliance Daily Inpatient Census is split according to Alliance Provider, and saved to their respective intranet folders.
+
+```{r}
+# Create a directory to store the CSV files
+data_dir <- "./data/output"
+dir.create(data_dir, showWarnings = FALSE)
+
+# Split the data frame based on AllianceProviderShortname
+split_data <- split(HIE_Roster, HIE_Roster$BHHShortName)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  folder_name <- file.path(data_dir, provider_name)
+  dir.create(folder_name, showWarnings = FALSE)
+  file_name <- file.path(folder_name, paste0("HIE_Roster_", provider_name, ".csv"))
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
+```
+
+# VBP Quality Roster
+
+## Import and filter VBPQ All Records Data
+
+```{r}
+#| label: VBP Quality Roster
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Import the data from the VBPValidationReport
+Data_VBPQualityRoster <- read.csv("./data/Data_VBPQR_AllRecords.csv")
+
+# Filter the VBPQualityRoster table for the most recent date
+VBPQualityRoster <-
+  Data_VBPQualityRoster %>%
+  filter(ClaimsAdjudicatedThrough == max(ClaimsAdjudicatedThrough))
+```
+
+## Distribute Data
+
+```{r}
+#| label: Distribute Data
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Create the output directory
+output_dir <- "./data/output/"
+dir.create(output_dir, showWarnings = FALSE)
+
+# Split the data frame based on Provider_Shortname
+split_data <- split(VBPQualityRoster, VBPQualityRoster$ProviderShortname)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  
+  # Create the folder for the provider if it doesn't exist
+  provider_folder <- file.path(output_dir, provider_name)
+  dir.create(provider_folder, showWarnings = FALSE, recursive = TRUE)
+  
+  # Construct the file name
+  file_name <- file.path(provider_folder, paste0("VBPQualityRoster_", provider_name, ".csv"))
+  
+  # Save the data frame as a CSV file
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
+
+```
+
+# Provider Sharepoint Partner List
+
+## Import the Intranet Partners data
+
+```{r}
+#| label: Website Partners
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+#Import Data
+IntranetWebsitePartners <- read_xlsx("./data/Aid-IntranetWebsitePartners.xlsx", sheet = "Sheet1")
+
+```
+
+## Distribute the data
+
+```{r}
+#| label: Website Partners
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Set the output directory
+output_dir <- "./data/output/"
+
+# Create the output directory if it doesn't exist
+dir_create(output_dir)
+
+# Get unique AllianceProviderShortname values
+provider_names <- unique(IntranetWebsitePartners$AllianceProviderShortname)
+
+# Split the table by AllianceProviderShortname and save individual CSV files
+walk(provider_names, function(provider) {
+  # Create provider-specific directory if it doesn't exist
+  provider_dir <- file.path(output_dir, provider)
+  dir_create(provider_dir)
+  
+  # Filter data for the current provider
+  provider_data <- filter(IntranetWebsitePartners, AllianceProviderShortname == provider)
+  
+  # Construct file name with current date
+  file_name <- file.path(provider_dir, paste0("IntranetWebsitePartners_", provider, ".csv"))
+  
+  # Save data as CSV
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+})
+
 ```

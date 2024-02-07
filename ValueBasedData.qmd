@@ -1,0 +1,135 @@
+---
+title: "AllianceIntranetSupport"
+subtitle: "TBD"
+author: 
+  name: "John Ryan Kivela, MA"
+  email: "Ryan.Kivela@narbha.org"
+date: today
+date-format: long
+format:
+  html:
+    theme: pulse
+    embed-resources: true
+    toc: true
+    toc-depth: 6
+    code-fold: true
+    footnotes-hover: true
+---
+
+# Setup
+
+```{r}
+#| label: Setup
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+## Load Libraries
+library(tidyverse)
+
+```
+
+# VBP Quality Roster
+
+## Import and filter VBPQ All Records Data
+
+```{r}
+#| label: VBP Quality Roster
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Import the data from the VBPValidationReport
+Data_VBPQualityRoster <- read.csv("./data/Data_VBPQR_AllRecords.csv")
+
+# Filter the VBPQualityRoster table for the most recent date
+VBPQualityRoster <-
+  Data_VBPQualityRoster %>%
+  filter(ClaimsAdjudicatedThrough == max(ClaimsAdjudicatedThrough))
+```
+
+## Distribute Data
+
+```{r}
+#| label: Distribute Data
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+# Create the output directory
+output_dir <- "./data/output/"
+dir.create(output_dir, showWarnings = FALSE)
+
+# Split the data frame based on Provider_Shortname
+split_data <- split(VBPQualityRoster, VBPQualityRoster$ProviderShortname)
+
+# Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
+for (provider_name in names(split_data)) {
+  provider_data <- split_data[[provider_name]]
+  
+  # Create the folder for the provider if it doesn't exist
+  provider_folder <- file.path(output_dir, provider_name)
+  dir.create(provider_folder, showWarnings = FALSE, recursive = TRUE)
+  
+  # Construct the file name
+  file_name <- file.path(provider_folder, paste0("VBPQualityRoster_", provider_name, ".csv"))
+  
+  # Save the data frame as a CSV file
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+}
+
+```
+
+
+
+
+# Provider Sharepoint Partner List
+
+```{r}
+#| label: Website Partners
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
+
+#Import Data
+IntranetWebsitePartners <- read_xlsx("./data/Aid-IntranetWebsitePartners.xlsx", sheet = "Sheet1")
+
+# Set the output directory
+output_dir <- "./data/output/"
+
+# Create the output directory if it doesn't exist
+dir_create(output_dir)
+
+# Get unique AllianceProviderShortname values
+provider_names <- unique(IntranetWebsitePartners$AllianceProviderShortname)
+
+# Split the table by AllianceProviderShortname and save individual CSV files
+walk(provider_names, function(provider) {
+  # Create provider-specific directory if it doesn't exist
+  provider_dir <- file.path(output_dir, provider)
+  dir_create(provider_dir)
+  
+  # Filter data for the current provider
+  provider_data <- filter(IntranetWebsitePartners, AllianceProviderShortname == provider)
+  
+  # Construct file name with current date
+  file_name <- file.path(provider_dir, paste0("IntranetWebsitePartners_", provider, "_", ".csv"))
+  
+  # Save data as CSV
+  write.csv(provider_data, file = file_name, row.names = FALSE)
+})
+
+```
+
+
+# Now, about the Power automate
+
+Within Power Automate there is a Flow for each Provider and the Alliance as a whole. 

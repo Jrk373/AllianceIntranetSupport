@@ -9,5 +9,44 @@ The principle components are:
 	
 	The process should work like this:
 	
-	1. Calculate the Alliance Member Roster
-	2. 
+	1.  Alliance Member Roster
+	  a.  The code for this is in the Intranet project
+	  b.  By nature, it provides a roster of everyone who is or has been enrolled with the Allliance, by all of thier respective enrollment segments.
+	  c. This code simplifies this to only the most recent enrollment segment
+	  d. The code for this is develped in the Community Health Outreach Roster, and any updates to the main code should be made there first.
+	  e.  The R program then distributes the data to each Alliance Provider's Aid site folder
+	  
+	2.  Alliance Inpatient Census
+	  a.  Currently, the data is queried directly in SQL Management Studio from HCA data warehouse
+	    1.  Cases that are currentl inpatient are first querried
+	    2.  Cases that were admitted AND discharged are querried next
+	    3.  The results of these 2 queries are saved as .csv files in the "./projects/AllianceIntranetSupport/data/input" folder
+	      a.  The files are "CensusInpatient.csv" and "CensusDischarge.csv"
+    b.  Now in R Studio, combine the 2 files to create a single table that reports both admits and discharges, and
+    c.  Attach information from the Alliance Member Enrollment data to provide outreach information
+    d.  The R program then distributes the data to each Alliance Provider's Aid site folder
+	    
+  3.  HIE
+    a.  Data for the last _________ days is queried from the HCA data warehouse using SQL
+    b.  Write this data to CSV for the record
+    b.  Attach information from the Alliance Member Enrollment data to provide outreach information
+    c.  Filter the data for Alliance Members only who have or have had an enrollment with BCBSAZ HCA, keeping only thier most recent enrollment entry
+    d.  The R program then distributes the data to each Alliance Provider's Aid site folder
+	    
+	    
+  4.  Value Based Quality Roster Data
+    a.  This data is created in the ValueBasedData project and saved as a .csv in "./projects/ValueBasedData/data/output"
+      1.  The file is called "Data_VBPQR_AllRecords.csv"
+    b.  Power automate runs everynight and copies the file from the "./projects/ValueBasedData/data/output" to "./projects/AllianceIntranetSupport/data/input"
+    c.  This data comes in with All records since 2022
+    d.  R code in the Intranet Support project then filters the data for only the most recent report, and then
+    e.  Distributes the data for the most recent report data to each of the providers' Aid site folders  
+    
+  5. Intranet website partners
+  
+  6. Data Dictionary
+  
+  
+  
+  
+  

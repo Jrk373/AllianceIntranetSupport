@@ -26,14 +26,10 @@ format:
 #| warning: false
 #| error: false
 
-## Load Libraries
- library(fs)
-# library(purrr)
-# library(readxl)
- library(tidyverse)
-# library(lubridate)
+library(fs)
+library(tidyverse)
 
-DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
+# DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
 
 ```
 
@@ -50,15 +46,15 @@ Import the most recent enrollment roster. The Alliance Member Enrollment Roster 
 #| error: false
 
 # Import the data from the monthly Alliance Progress Report
-AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
-
-AllianceMemberEnrollmentRoster <-
-  AllianceMemberEnrollmentRoster |> 
-  select(
-    -SpokenLanguage,
-    #-EmploymentStatus,
-    -MilitaryStatus
-  )
+# AllianceMemberEnrollmentRoster <- read.csv("./data/ActiveNAZMembership.csv")
+# 
+# AllianceMemberEnrollmentRoster <-
+#   AllianceMemberEnrollmentRoster |> 
+#   select(
+#     -SpokenLanguage,
+#     #-EmploymentStatus,
+#     -MilitaryStatus
+#   )
 
 ```
 

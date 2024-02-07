@@ -27,16 +27,11 @@ format:
 #| error: false
 
 ## Load Libraries
- library(fs)
-# library(purrr)
 library(tidyverse)
-# library(lubridate)
-library(readxl)
-# library(odbc)
 library(DBI)
 
 # Set up ODBC Connection
-# PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A")
+PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A")
 # QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
 
 
@@ -47,25 +42,24 @@ library(DBI)
 This procedure loads previously processed data for ease of use in development. 
 
 ```{r}
+#| label: Preload Data
+#| eval: true
+#| include: false
+#| echo: false
+#| warning: false
+#| error: false
 
-Data_AllianceEnrolledMembers <- read.csv("./data/input/AllianceEnrolledMembers.csv")
+# AllianceEnrolledMembers <- read.csv("./data/input/AllianceEnrolledMembers.csv")
 
-Data_HIE <- read.csv("./data/input/HIE.csv")
-
-```
-
-# Active Members
-```{r}
-AllianceEnrolledMembers <-
-  Data_AllianceEnrolledMembers %>%
-  group_by(AhcccsId) %>%
-  filter(EnrollmentDate == max(EnrollmentDate))
+# Data_HIE <- read.csv("./data/input/HIE.csv")
 
 ```
 
-# HIE
+# HIE Data
 
-## SQL Query
+This part of the program queries the BCBSAZ HCA data warehouse for the HIE data. This data is updated daily.
+
+*As of 1/31/24 this table is not working on the HCA side. HCA data people are working on it. In the meantime we are using demo data from December 2023.*
 
 ```{sql, connection = PHXSQLP01A, output.var = "Data_HIE"}
 
@@ -84,7 +78,7 @@ WHERE Admit_DateTime BETWEEN @start AND @end
 
 ## HIE Data Wrangling
 
-The HIE data is well known for being a hot mess. This next set of procedures wrangles the raw data into a useable format.
+The HIE data is well known for being a hot mess. This next set of procedures wrangles the raw data into a usable format.
 
 ```{r}
 
@@ -105,18 +99,27 @@ HIE <-
            sep = " ", 
            extra = "merge", 
            fill = "right") |> 
-  separate(DOB, into = c("MM","DD","YYYY"),
-           sep = "/",
-           extra = "merge") |> 
-  mutate(DOB = as.Date(paste(YYYY, MM, DD, sep = "-"))) |> 
   mutate(PointOfCare_ED = ifelse(grepl("ED", PointOfCare), 1, 0)) |> 
   filter(MessageTypeDescription == "REGISTER A PATIENT" | MessageTypeDescription == "DISCHARGE/END VISIT") |> 
   group_by(VisitNumber) |>
   mutate(Discharge_DateTime = ifelse(MessageType == "A04" & any(MessageType == "A03"), max(Discharge_DateTime[MessageType == "A03"]), Discharge_DateTime)) |> 
   filter(MessageType == "A04") |> 
-  select(1, 4, 2, 20, 8, 10, 21, 11, 12) |> 
+  select(1, 4, 2, 5, 6, 8, 18, 9, 10, 16, 17) |> 
   rename(AhcccsId = "AHCCCSId") |> 
   mutate_all(str_squish)
+
+# Get the current date
+current_date <- Sys.Date()
+
+# Create the file name with the current date
+file_name <- paste0("./data/input/Data_HIE/HIE_", current_date, ".csv")
+
+# Write the HIE table to the CSV file
+write.csv(HIE, file_name, row.names = FALSE)
+
+```
+
+```{r}
 
 HIE_Roster1 <-
   merge(x = HIE,
@@ -125,7 +128,7 @@ HIE_Roster1 <-
         #,
         #all.x = TRUE) |> 
   filter(AhcccsId != "") |> 
-  select(1, 11, 12, 13, 18, 5:9, 14:17, 19:43) |> 
+  select(1, 12, 13, 14, 19, 5, 8, 9, 7, 6, 15:18, 21:44) |> 
   rename(LastName = "LastName.y",
          FirstName = "FirstName.y",
          DOB = "DOB.y")
@@ -141,7 +144,7 @@ HIE_Roster2 <-
         #,
         #all.x = TRUE) |> 
   filter(!is.na(PrimaryId)) |> 
-  select(3, 11, 1, 2, 17, 5:9, 13:16, 18:42) |> 
+  select(3, 12, 1, 2, 18, 5, 8, 9, 7, 6, 14:17, 20:43) |> 
   rename(AhcccsId = "AhcccsId.x",
          DOB = "DOB.y")
 
@@ -161,19 +164,18 @@ data_dir <- "./data/output"
 dir.create(data_dir, showWarnings = FALSE)
 
 # Split the data frame based on AllianceProviderShortname
-split_data <- split(AllianceDailyInpatientCensus, AllianceDailyInpatientCensus$BHHShortName)
+split_data <- split(HIE_Roster, HIE_Roster$BHHShortName)
 
 # Iterate over the list and save each data frame as a separate CSV file in the corresponding folder
 for (provider_name in names(split_data)) {
   provider_data <- split_data[[provider_name]]
   folder_name <- file.path(data_dir, provider_name)
   dir.create(folder_name, showWarnings = FALSE)
-  file_name <- file.path(folder_name, paste0("AllianceDailyInpatientCensus_", provider_name, ".csv"))
+  file_name <- file.path(folder_name, paste0("HIE_Roster_", provider_name, ".csv"))
   write.csv(provider_data, file = file_name, row.names = FALSE)
 }
 ```
 
-:::
 
 
 
