@@ -41,6 +41,7 @@ library(fs) # Inpatient Census
 
 # Set up ODBC Connection
 QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
+DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
 PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A") # HIE
 
 ```
@@ -263,12 +264,12 @@ WHERE rn = 1
 
 ```{r}
 # Write enrollment data to files for easy test load.
-write.csv(GM_ALLAZ_Addresses, "./data/input/GM_AllAZAddresses.csv")
-write.csv(GM_ALLAZ_Enrollments, "./data/input/GM_AllAZ_Enrollments.csv")
-write.csv(GM_Clients_Demographics, "./data/input/GM_Clients_Demographics.csv")
-write.csv(GM_DUGLess, "./data/input/GM_DUGLess.csv")
-write.csv(GM_Enrollments_AllACC, "./data/input/GM_Enrollments_AllACC.csv")
-write.csv(LastService, "./data/input/LastService.csv")
+# write.csv(GM_ALLAZ_Addresses, "./data/input/GM_AllAZAddresses.csv")
+# write.csv(GM_ALLAZ_Enrollments, "./data/input/GM_AllAZ_Enrollments.csv")
+# write.csv(GM_Clients_Demographics, "./data/input/GM_Clients_Demographics.csv")
+# write.csv(GM_DUGLess, "./data/input/GM_DUGLess.csv")
+# write.csv(GM_Enrollments_AllACC, "./data/input/GM_Enrollments_AllACC.csv")
+# write.csv(LastService, "./data/input/LastService.csv")
 ```
 
 ### Enrollment Calculation
@@ -830,10 +831,14 @@ AllianceDailyInpatientCensus$LengthofStay <-
 #| warning: false
 #| error: false
 
+AllianceEnrolledMembers_Census <-
+  AllianceEnrolledMembers |> 
+  rename(AHCCCSID = "AhcccsId")
+
 # Merge tables
 AllianceDailyInpatientCensus <-
   merge(x = AllianceDailyInpatientCensus,
-        y = AllianceMemberEnrollmentRoster,
+        y = AllianceEnrolledMembers_Census,
         by = "AHCCCSID",
         all.x = TRUE)
 
@@ -847,7 +852,7 @@ AllianceDailyInpatientCensus <-
     #StayType = "StayType.x"
   ) |> 
   select(
-    -X, 
+    #-X, 
     -FirstName.y,
     -LastName.y,
     -DOD
@@ -903,16 +908,16 @@ This part of the program queries the BCBSAZ HCA data warehouse for the HIE data.
 
 ```{sql, connection = PHXSQLP01A, output.var = "Data_HIE"}
 
-Declare @start as date = '12-01-2023'
-Declare @end as date = '12-31-2023'
+-- Declare @start as date = '12-01-2023'
+-- Declare @end as date = '12-31-2023'
 
 SELECT * 
 
 FROM HIEHL7.dbo.MasterHL7Item
 
-WHERE Admit_DateTime BETWEEN @start AND @end
+--WHERE Admit_DateTime BETWEEN @start AND @end
 
---WHERE admit_dateTime >= DATEADD(day, -30, getdate())
+WHERE admit_dateTime >= DATEADD(day, -30, getdate())
 
 ```
 
@@ -934,16 +939,16 @@ HIE <-
   HIE |> 
   separate(Name, into = c("FirstName", "Remaining"), 
            sep = " ", 
-           extra = "merge") |> 
+           extra = "merge") |> # Seperate out first and last name
   separate(Remaining, into = c("MiddleName", "LastName"), 
            sep = " ", 
            extra = "merge", 
-           fill = "right") |> 
-  mutate(PointOfCare_ED = ifelse(grepl("ED", PointOfCare), 1, 0)) |> 
-  filter(MessageTypeDescription == "REGISTER A PATIENT" | MessageTypeDescription == "DISCHARGE/END VISIT") |> 
-  group_by(VisitNumber) |>
-  mutate(Discharge_DateTime = ifelse(MessageType == "A04" & any(MessageType == "A03"), max(Discharge_DateTime[MessageType == "A03"]), Discharge_DateTime)) |> 
-  filter(MessageType == "A04") |> 
+           fill = "right") |> # separate out first and last name
+  mutate(PointOfCare_ED = ifelse(grepl("ED", PointOfCare), 1, 0)) |> # identify all points of care that look or sound like "ED:
+  filter(MessageTypeDescription == "REGISTER A PATIENT" | MessageTypeDescription == "DISCHARGE/END VISIT") |> # filter for only admissions and discharge messages
+  group_by(VisitNumber) |> # group by each visit number
+  mutate(Discharge_DateTime = ifelse(MessageType == "A04" & any(MessageType == "A03"), max(Discharge_DateTime[MessageType == "A03"]), Discharge_DateTime)) |> # select the most recent discharge date, indicating the place the member was most recently seen, then connects a given admission date to its respective discharge date
+  filter(MessageType == "A04") |> # then select a single row per pair based on admission date
   select(1, 4, 2, 5, 6, 8, 18, 9, 10, 16, 17) |> 
   rename(AhcccsId = "AHCCCSId") |> 
   mutate_all(str_squish)
@@ -961,6 +966,7 @@ write.csv(HIE, file_name, row.names = FALSE)
 
 ```{r}
 
+# Entries that can be matched by AHCCCSID
 HIE_Roster1 <-
   merge(x = HIE,
         y = AllianceEnrolledMembers,
@@ -973,6 +979,7 @@ HIE_Roster1 <-
          FirstName = "FirstName.y",
          DOB = "DOB.y")
 
+# Entries without AHCCCSIDs that can be matched by lastname/firstname
 HIE_Roster2 <-
   HIE |> 
   filter(AhcccsId == "")
