@@ -41,7 +41,7 @@ library(fs) # Inpatient Census
 
 # Set up ODBC Connection
 QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
-DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
+#DWPROD01 <- DBI::dbConnect(odbc::odbc(), "BehavioralHealthAlliance")
 PHXSQLP01A <- DBI::dbConnect(odbc::odbc(), "PHXSQLP01A") # HIE
 
 ```
@@ -82,7 +82,7 @@ Pre-load already processed data for testing.
 #   Column1 = "text")
 
 # Vector of Alliance Provider Name
-Provider_ShortName <- (c("CBI", "CPIH", "EHS", "LCBHC", "MMHC", "SHG", "SBH", "TGC", "WYGC"))
+Provider_ShortName <- (c("CBI", "CPIH", "EHS", "LCBHC", "MMHC", "SHG", "SBHS", "TGC", "PH"))
 
 # Vector of NAZ Counties
 NAZ_Counties <- (c("Apache", "Coconino", "Mohave", "Navajo", "Yavapai"))
@@ -92,7 +92,7 @@ NAZ_Counties <- (c("Apache", "Coconino", "Mohave", "Navajo", "Yavapai"))
 ProviderTIN <-
 data.frame(
 BHHProvider_TIN = c("86-0206928", "86-0206928", "86-0207499", "86-0214457", "86-0215065", "86-0223720", "86-0250938", "86-0290033", "86-0473221", "94-2880847"),
-BHHShortName = c("PH", "WYGC", "SHG", "MMHC", "CPIH", "TGC", "LCBHC", "SBH", "EHS", "CBI")
+BHHShortName = c("PH", "WYGC", "SHG", "MMHC", "CPIH", "TGC", "LCBHC", "SBHS", "EHS", "CBI")
 )
 
 # Create a list with the ultimate column names for the data
@@ -904,8 +904,6 @@ for (provider_name in names(split_data)) {
 
 This part of the program queries the BCBSAZ HCA data warehouse for the HIE data. This data is updated daily.
 
-*As of 1/31/24 this table is not working on the HCA side. HCA data people are working on it. In the meantime we are using demo data from December 2023.*
-
 ```{sql, connection = PHXSQLP01A, output.var = "Data_HIE"}
 
 -- Declare @start as date = '12-01-2023'
@@ -921,6 +919,39 @@ WHERE admit_dateTime >= DATEADD(day, -30, getdate())
 
 ```
 
+```{sql, connection = PHXSQLP01A, output.var = "Data_HIE_Dx"}
+
+-- Declare @start as date = '12-01-2023'
+-- Declare @end as date = '12-31-2023'
+SELECT 
+  I.MasterHL7ItemId
+  , I.AHCCCSId
+  , I.Name
+  , I.DOB
+  , I.VisitNumber
+  , I.PointOfCare
+  , I.Facility
+  , I.Admit_DateTime
+  , I.Discharge_DateTime
+  , I.MessageType
+  , I.MessageTypeDescription
+  , D.Code
+  , D.Description
+
+
+FROM HIEHL7.dbo.MasterHL7Item AS I
+    LEFT JOIN HIEHL7.dbo.HL7Diagnosis AS D
+        ON I.MasterHL7ItemId = D.MasterHL7ItemId
+
+--FROM HIEHL7.dbo.MasterHL7Item
+
+--WHERE Admit_DateTime BETWEEN @start AND @end
+
+WHERE admit_dateTime >= DATEADD(day, -30, getdate()) AND
+Code LIKE '%F%'
+
+```
+
 ## HIE Data Wrangling
 
 The HIE data is well known for being a hot mess. This next set of procedures wrangles the raw data into a usable format.
@@ -929,8 +960,8 @@ The HIE data is well known for being a hot mess. This next set of procedures wra
 
 # Select variables
 HIE <-
-  Data_HIE |> 
-  select(28, 3, 4, 5, 8, 11, 12, 13, 15:21) |> 
+  Data_HIE_Dx |> 
+  #select(28, 3, 4, 5, 8, 11, 12, 13, 15:21) |> 
   mutate_all(str_squish)
 
 # Split Name into first name/last name
@@ -949,7 +980,7 @@ HIE <-
   group_by(VisitNumber) |> # group by each visit number
   mutate(Discharge_DateTime = ifelse(MessageType == "A04" & any(MessageType == "A03"), max(Discharge_DateTime[MessageType == "A03"]), Discharge_DateTime)) |> # select the most recent discharge date, indicating the place the member was most recently seen, then connects a given admission date to its respective discharge date
   filter(MessageType == "A04") |> # then select a single row per pair based on admission date
-  select(1, 4, 2, 5, 6, 8, 18, 9, 10, 16, 17) |> 
+  #select(1, 4, 2, 5, 6, 8, 18, 9, 10, 16, 17) |> 
   rename(AhcccsId = "AHCCCSId") |> 
   mutate_all(str_squish)
 
@@ -974,7 +1005,7 @@ HIE_Roster1 <-
         #,
         #all.x = TRUE) |> 
   filter(AhcccsId != "") |> 
-  select(1, 12, 13, 14, 19, 5, 8, 9, 7, 6, 15:18, 21:44) |> 
+  select(1, 7, 8, 9, 10, 11, 14, 15, 16, 18, 19, 20:24, 43, 44, 45, 26, 29, 31, 33, 35, 37, 39, 40, 41, 42, 47) |> 
   rename(LastName = "LastName.y",
          FirstName = "FirstName.y",
          DOB = "DOB.y")
@@ -990,14 +1021,16 @@ HIE_Roster2 <-
         by = c("LastName", "FirstName")) |> 
         #,
         #all.x = TRUE) |> 
-  filter(!is.na(PrimaryId)) |> 
-  select(3, 12, 1, 2, 18, 5, 8, 9, 7, 6, 14:17, 20:43) |> 
+  #filter(!is.na(PrimaryId)) |> 
+  select(4, 7, 8, 9, 10, 11, 14, 15, 16, 1, 2, 19, 20, 21, 22, 23, 42, 43, 44, 25, 28, 30, 32, 34, 36, 38, 39, 40, 41, 46) |> 
   rename(AhcccsId = "AhcccsId.x",
          DOB = "DOB.y")
 
 HIE_Roster <-
   rbind(HIE_Roster1, 
         HIE_Roster2)
+
+write.csv(HIE_Roster, "./data/output/HIE_DailyRoster.csv")
 
 ```
 

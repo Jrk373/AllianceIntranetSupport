@@ -58,7 +58,7 @@ QRPTP01 <- DBI::dbConnect(odbc::odbc(),"AllianceData")
 #   Column1 = "text")
 
 # Vector of Alliance Provider Name
-Provider_ShortName <- (c("CBI", "CPIH", "EHS", "LCBHC", "MMHC", "SHG", "SBH", "TGC", "WYGC"))
+Provider_ShortName <- (c("CBI", "CPIH", "EHS", "LCBHC", "MMHC", "SHG", "SBHs", "TGC", "PH"))
 
 # Vector of NAZ Counties
 NAZ_Counties <- (c("Apache", "Coconino", "Mohave", "Navajo", "Yavapai"))
@@ -68,7 +68,7 @@ NAZ_Counties <- (c("Apache", "Coconino", "Mohave", "Navajo", "Yavapai"))
 ProviderTIN <-
 data.frame(
 BHHProvider_TIN = c("86-0206928", "86-0206928", "86-0207499", "86-0214457", "86-0215065", "86-0223720", "86-0250938", "86-0290033", "86-0473221", "94-2880847"),
-BHHShortName = c("PH", "WYGC", "SHG", "MMHC", "CPIH", "TGC", "LCBHC", "SBH", "EHS", "CBI")
+BHHShortName = c("PH", "WYGC", "SHG", "MMHC", "CPIH", "TGC", "LCBHC", "SBHS", "EHS", "CBI")
 )
 
 # Create a list with the ultimate column names for the data
